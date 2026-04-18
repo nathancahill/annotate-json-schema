@@ -1,0 +1,75 @@
+{
+  "name": "annotate-json-schema",
+  "version": "0.1.0",
+  "description": "Preprocess a JSON Schema to annotate leaf properties with json-schema-faker `faker` keywords.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "keywords": [
+    "json-schema",
+    "faker",
+    "json-schema-faker",
+    "mock",
+    "mock-data",
+    "fixtures",
+    "annotate",
+    "schema",
+    "fake-data",
+    "testing"
+  ],
+  "author": "Nathan Cahill <nathan@nathancahill.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/nathancahill/annotate-json-schema#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nathancahill/annotate-json-schema.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nathancahill/annotate-json-schema/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "clean": "rm -rf dist",
+    "lint": "npm run lint:ts && npm run lint:format",
+    "lint:ts": "tsc --noEmit",
+    "lint:format": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint:ts && npm test && npm run build"
+  },
+  "dependencies": {
+    "pluralize": "^8.0.0"
+  },
+  "peerDependencies": {
+    "json-schema-faker": "^0.6.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.4.0",
+    "@types/node": "^22.0.0",
+    "@types/pluralize": "^0.0.33",
+    "json-schema-faker": "^0.6.1",
+    "prettier": "^3.8.2",
+    "typescript": "^5.0.0",
+    "vite": "^8.0.8",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.1.4"
+  }
+}
