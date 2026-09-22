@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.1.1 - 2026-09-22
 
 - Leaves with `enum` or `const` are no longer annotated. json-schema-faker prefers `faker` over both, so an enum field such as `kind: { enum: ["dog", "cat"] }` used to get `lorem.sentence` (or a dictionary match) and generate values outside the enum. An explicit `faker` on such a node is still kept.
 
