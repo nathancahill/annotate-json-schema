@@ -59,10 +59,11 @@ const data = await generate(annotated, {
 For each leaf property, precedence is (first hit wins):
 
 1. **Existing `faker` annotation** — if the node already has one and `preserveExisting` is `true` (default), it's kept.
-2. **`format` hint** — e.g. `format: "uuid"` → `string.uuid`, `format: "email"` → `internet.email`.
-3. **Category + field** — the schema name is singularized (via `pluralize`) and case-normalized, then looked up in `schemaAliases` to get a category (e.g. `Users` → `user` → `person`). The field name is then looked up in the per-category field map (e.g. `person.name` → `person.fullName`, `company.name` → `company.name`).
-4. **Generic field** — a schema-agnostic fallback (e.g. `email` → `internet.email`, `createdAt` → `date.past`, `zipCode` → `location.zipCode`).
-5. **Lorem fallback** — any unmatched `type: "string"` leaf gets `lorem.sentence` (toggle with `loremFallback: false`).
+2. **`enum` or `const`** — the node is left without an annotation, so json-schema-faker picks from the listed values (it would otherwise let `faker` override them).
+3. **`format` hint** — e.g. `format: "uuid"` → `string.uuid`, `format: "email"` → `internet.email`.
+4. **Category + field** — the schema name is singularized (via `pluralize`) and case-normalized, then looked up in `schemaAliases` to get a category (e.g. `Users` → `user` → `person`). The field name is then looked up in the per-category field map (e.g. `person.name` → `person.fullName`, `company.name` → `company.name`).
+5. **Generic field** — a schema-agnostic fallback (e.g. `email` → `internet.email`, `createdAt` → `date.past`, `zipCode` → `location.zipCode`).
+6. **Lorem fallback** — any unmatched `type: "string"` leaf gets `lorem.sentence` (toggle with `loremFallback: false`).
 
 Compound schema names (`UserAccount`, `user_accounts`, `ReviewComments`) are split and their parts are tried as fallbacks, so `user_accounts.name` → `person.fullName` via the `user` alias.
 

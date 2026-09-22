@@ -53,10 +53,11 @@ function isStringLeaf(node: JsonSchemaObject): boolean {
  *
  * Precedence:
  *   1. Existing `faker` annotation (when `preserveExisting`)
- *   2. `format` hint
- *   3. Category-scoped field map (schemaName → category → field)
- *   4. Generic field map
- *   5. `lorem.sentence` fallback for string leaves (when `loremFallback`)
+ *   2. No annotation for a leaf with `enum` or `const`
+ *   3. `format` hint
+ *   4. Category-scoped field map (schemaName → category → field)
+ *   5. Generic field map
+ *   6. `lorem.sentence` fallback for string leaves (when `loremFallback`)
  */
 export function matchField(
   schemaName: string,
@@ -67,6 +68,11 @@ export function matchField(
   if (ctx.preserveExisting && typeof node.faker === "string") {
     return node.faker;
   }
+
+  // The schema already lists the valid values. json-schema-faker prefers
+  // `faker` over `enum` and `const`, so an annotation would replace them with
+  // values the schema rejects.
+  if (Array.isArray(node.enum) || "const" in node) return undefined;
 
   if (typeof node.format === "string") {
     const hit = ctx.formatHints[node.format];

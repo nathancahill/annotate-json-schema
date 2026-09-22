@@ -191,6 +191,52 @@ describe("annotate — generic fallbacks", () => {
   });
 });
 
+describe("annotate — enum and const", () => {
+  it("leaves an enum leaf to json-schema-faker, even when the name matches", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          kind: { type: "string", enum: ["dog", "cat"] },
+          email: { type: "string", enum: ["a@example.com"] },
+        },
+      },
+      "Pet",
+    );
+    expect(prop(out, "kind").faker).toBeUndefined();
+    expect(prop(out, "email").faker).toBeUndefined();
+  });
+
+  it("leaves a const leaf alone, including const null", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          status: { type: "string", const: "draft" },
+          note: { type: ["string", "null"], const: null },
+        },
+      },
+      "Post",
+    );
+    expect(prop(out, "status").faker).toBeUndefined();
+    expect(prop(out, "note").faker).toBeUndefined();
+  });
+
+  it("keeps a faker the caller put on an enum leaf", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          kind: { type: "string", enum: ["dog"], faker: "animal.dog" },
+        },
+      },
+      "Pet",
+      { preserveExisting: false },
+    );
+    expect(prop(out, "kind").faker).toBe("animal.dog");
+  });
+});
+
 describe("annotate — preserveExisting", () => {
   it("keeps an existing faker annotation by default", () => {
     const out = annotate(
