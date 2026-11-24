@@ -251,3 +251,29 @@ describe("smoke — numbers stay numbers through json-schema-faker", () => {
     }
   });
 });
+
+describe("smoke — constrained leaves generate within their constraints", () => {
+  it("pattern, numeric bounds and maxLength survive annotation", async () => {
+    const schema: JsonSchema = {
+      type: "object",
+      required: ["code", "year", "spotifyId"],
+      properties: {
+        code: { type: "string", pattern: "^[A-Z]{4}$" },
+        year: { type: "integer", minimum: 1950, maximum: 2030 },
+        spotifyId: { type: "string", maxLength: 22 },
+      },
+    };
+
+    const annotated = annotate(schema, "Book");
+    for (let i = 0; i < 20; i++) {
+      const data = (await generate(annotated, {
+        extensions: { faker },
+      })) as Record<string, unknown>;
+      expect(String(data.code)).toMatch(/^[A-Z]{4}$/);
+      expect(data.year).toBeGreaterThanOrEqual(1950);
+      expect(data.year).toBeLessThanOrEqual(2030);
+      expect(Number.isInteger(data.year)).toBe(true);
+      expect(String(data.spotifyId).length).toBeLessThanOrEqual(22);
+    }
+  });
+});

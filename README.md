@@ -78,6 +78,12 @@ Rules 3 to 5 are guesses from a name, and a name says nothing about the type: `p
 
 A `number` or `integer` property with no numeric hint gets no annotation, so json-schema-faker generates it from the schema's own `minimum` / `maximum` / `multipleOf`. (A string hint on a number used to make json-schema-faker emit `null`.) A method path the library does not know, one of your own included, is taken to return a string. An explicit `faker` on the node (rule 1) is never checked.
 
+json-schema-faker uses a `faker` value as it comes, without checking it against the rest of the schema. So, as with `enum` and `const`, constraints a hint would override are left to json-schema-faker:
+
+- a leaf with a `pattern` gets no annotation at all;
+- a leaf with `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` or `multipleOf` gets no numeric hint (`number.int` alone ranges up to 2^53);
+- a string with a `maxLength` gets no lorem fallback. A name hint is still applied (`firstName` with `maxLength: 100` gets `person.firstName`), and is not checked against the limit.
+
 Compound schema names (`UserAccount`, `user_accounts`, `ReviewComments`) are split and their parts are tried as fallbacks, so `user_accounts.name` → `person.fullName` via the `user` alias.
 
 ## Traversal

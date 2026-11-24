@@ -341,6 +341,96 @@ describe("annotate — hints respect the property type", () => {
   });
 });
 
+describe("annotate — constraints a hint would override", () => {
+  it("leaves a leaf with a pattern alone, even when the name matches", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          code: { type: "string", pattern: "^[A-Z]{4}$" },
+          email: { type: "string", pattern: "@example\\.com$" },
+          id: { type: "string", format: "uuid", pattern: "^[a-z0-9]{15}$" },
+        },
+      },
+      "User",
+    );
+    expect(prop(out, "code").faker).toBeUndefined();
+    expect(prop(out, "email").faker).toBeUndefined();
+    expect(prop(out, "id").faker).toBeUndefined();
+  });
+
+  it("puts no numeric hint on a number with bounds", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          year: { type: "integer", minimum: 1950, maximum: 2030 },
+          pages: { type: "integer", minimum: 0 },
+          rating: { type: "number", exclusiveMaximum: 5 },
+          latitude: { type: "number", multipleOf: 0.5 },
+        },
+      },
+      "Book",
+      { genericFields: { rating: "number.float" } },
+    );
+    expect(prop(out, "year").faker).toBeUndefined();
+    expect(prop(out, "pages").faker).toBeUndefined();
+    expect(prop(out, "rating").faker).toBeUndefined();
+    expect(prop(out, "latitude").faker).toBeUndefined();
+  });
+
+  it("keeps the numeric hint on a number without bounds", () => {
+    const out = annotate(
+      { type: "object", properties: { pages: { type: "integer" } } },
+      "Book",
+    );
+    expect(prop(out, "pages").faker).toBe("number.int");
+  });
+
+  it("skips the lorem fallback on a string with a maxLength", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          spotifyId: { type: "string", maxLength: 22 },
+          foobar: { type: "string", minLength: 3 },
+        },
+      },
+      "RandomWidget",
+    );
+    expect(prop(out, "spotifyId").faker).toBeUndefined();
+    expect(prop(out, "foobar").faker).toBe("lorem.sentence");
+  });
+
+  it("keeps a name hint on a string with length limits", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: { firstName: { type: "string", maxLength: 100 } },
+      },
+      "User",
+    );
+    expect(prop(out, "firstName").faker).toBe("person.firstName");
+  });
+
+  it("keeps a faker the caller put on a constrained leaf", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          code: {
+            type: "string",
+            pattern: "^[A-Z]{4}$",
+            faker: "string.alpha",
+          },
+        },
+      },
+      "RandomWidget",
+    );
+    expect(prop(out, "code").faker).toBe("string.alpha");
+  });
+});
+
 describe("annotate — enum and const", () => {
   it("leaves an enum leaf to json-schema-faker, even when the name matches", () => {
     const out = annotate(
