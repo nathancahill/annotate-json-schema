@@ -191,6 +191,156 @@ describe("annotate — generic fallbacks", () => {
   });
 });
 
+describe("annotate — hints respect the property type", () => {
+  it("position: number gets no string hint, in a person schema or any other", () => {
+    for (const schemaName of ["User", "Stage", "RandomWidget"]) {
+      const out = annotate(
+        { type: "object", properties: { position: { type: "number" } } },
+        schemaName,
+      );
+      expect(prop(out, "position").faker).toBeUndefined();
+    }
+  });
+
+  it("position: string still gets person.jobTitle", () => {
+    const out = annotate(
+      { type: "object", properties: { position: { type: "string" } } },
+      "User",
+    );
+    expect(prop(out, "position").faker).toBe("person.jobTitle");
+  });
+
+  it("year: integer keeps a numeric hint where the dictionary has one", () => {
+    const out = annotate(
+      { type: "object", properties: { year: { type: "integer" } } },
+      "Book",
+    );
+    expect(prop(out, "year").faker).toBe("number.int");
+  });
+
+  it("year: integer with no numeric hint is left to the schema", () => {
+    const out = annotate(
+      { type: "object", properties: { year: { type: "integer" } } },
+      "Song",
+    );
+    expect(prop(out, "year").faker).toBeUndefined();
+  });
+
+  it("an integer does not take a hint that returns floats", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          latitude: { type: "integer" },
+          longitude: { type: "number" },
+        },
+      },
+      "Place",
+    );
+    expect(prop(out, "latitude").faker).toBeUndefined();
+    expect(prop(out, "longitude").faker).toBe("location.longitude");
+  });
+
+  it("a string hint is not put on a number, integer or boolean", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          price: { type: "number" },
+          title: { type: "integer" },
+          name: { type: "boolean" },
+        },
+      },
+      "Product",
+    );
+    expect(prop(out, "price").faker).toBeUndefined();
+    expect(prop(out, "title").faker).toBeUndefined();
+    expect(prop(out, "name").faker).toBeUndefined();
+  });
+
+  it("falls through to the next rule when a hint has the wrong type", () => {
+    // The person category says `position` is a job title. On a number that
+    // is passed over, and the caller's generic entry gets its turn.
+    const out = annotate(
+      { type: "object", properties: { position: { type: "number" } } },
+      "User",
+      { genericFields: { position: "number.int" } },
+    );
+    expect(prop(out, "position").faker).toBe("number.int");
+  });
+
+  it("a string keeps hints that return a number or a date", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          port: { type: "string" },
+          createdAt: { type: "string" },
+        },
+      },
+      "RandomWidget",
+    );
+    expect(prop(out, "port").faker).toBe("internet.port");
+    expect(prop(out, "createdAt").faker).toBe("date.past");
+  });
+
+  it("a string named after a hint that returns an object falls back to lorem", () => {
+    const out = annotate(
+      { type: "object", properties: { airline: { type: "string" } } },
+      "Flight",
+    );
+    expect(prop(out, "airline").faker).toBe("lorem.sentence");
+  });
+
+  it("a format hint is checked the same way", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: { stamp: { type: "integer", format: "date-time" } },
+      },
+      "RandomWidget",
+    );
+    expect(prop(out, "stamp").faker).toBeUndefined();
+  });
+
+  it("with a list of types, one compatible type is enough", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: {
+          position: { type: ["string", "null"] },
+          rank: { type: ["number", "null"] },
+        },
+      },
+      "User",
+      { genericFields: { rank: "person.jobTitle" } },
+    );
+    expect(prop(out, "position").faker).toBe("person.jobTitle");
+    expect(prop(out, "rank").faker).toBeUndefined();
+  });
+
+  it("a property without a type takes any hint", () => {
+    const out = annotate(
+      { type: "object", properties: { position: {}, pages: {} } },
+      "Book",
+      { genericFields: { position: "person.jobTitle" } },
+    );
+    expect(prop(out, "position").faker).toBe("person.jobTitle");
+    expect(prop(out, "pages").faker).toBe("number.int");
+  });
+
+  it("an explicit faker on the node is kept whatever its type", () => {
+    const out = annotate(
+      {
+        type: "object",
+        properties: { position: { type: "number", faker: "person.jobTitle" } },
+      },
+      "User",
+    );
+    expect(prop(out, "position").faker).toBe("person.jobTitle");
+  });
+});
+
 describe("annotate — enum and const", () => {
   it("leaves an enum leaf to json-schema-faker, even when the name matches", () => {
     const out = annotate(

@@ -4,6 +4,7 @@ import {
   genericFields as builtinGenericFields,
   schemaAliases as builtinSchemaAliases,
 } from "./dict/index.js";
+import { isCompatible } from "./faker-types.js";
 import { normalizeKey, normalizeSchemaName } from "./normalize.js";
 import type { AnnotateOptions, JsonSchemaObject } from "./types.js";
 
@@ -64,6 +65,10 @@ function isStringLeaf(node: JsonSchemaObject): boolean {
  *   4. Category-scoped field map (schemaName → category → field)
  *   5. Generic field map
  *   6. `lorem.sentence` fallback for string leaves (when `loremFallback`)
+ *
+ * Rules 3 to 5 only count when the faker method returns a value the node's
+ * `type` allows; otherwise the next rule is tried. A number or integer leaf
+ * with no usable hint gets no annotation and is generated from the schema.
  */
 export function matchField(
   schemaName: string,
@@ -80,9 +85,16 @@ export function matchField(
   // values the schema rejects.
   if (Array.isArray(node.enum) || "const" in node) return undefined;
 
+  // A hint is only a guess from a name, and the name says nothing about the
+  // type: `position` is a job title on a string and a rank on a number. A
+  // hint whose faker method returns the wrong type is passed over, and the
+  // next rule gets its turn.
+  const usable = (hit: string | undefined): hit is string =>
+    hit !== undefined && isCompatible(hit, node);
+
   if (typeof node.format === "string") {
     const hit = ctx.formatHints[node.format];
-    if (hit) return hit;
+    if (usable(hit)) return hit;
   }
 
   const fieldKey = normalizeKey(fieldName);
@@ -96,11 +108,11 @@ export function matchField(
     const categoryMap = ctx.categoryFields[category];
     if (!categoryMap) continue;
     const hit = categoryMap[fieldKey];
-    if (hit) return hit;
+    if (usable(hit)) return hit;
   }
 
   const generic = ctx.genericFields[fieldKey];
-  if (generic) return generic;
+  if (usable(generic)) return generic;
 
   if (ctx.loremFallback && isStringLeaf(node)) {
     return "lorem.sentence";

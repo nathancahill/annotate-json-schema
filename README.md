@@ -65,6 +65,19 @@ For each leaf property, precedence is (first hit wins):
 5. **Generic field** — a schema-agnostic fallback (e.g. `email` → `internet.email`, `createdAt` → `date.past`, `zipCode` → `location.zipCode`).
 6. **Lorem fallback** — any unmatched `type: "string"` leaf gets `lorem.sentence` (toggle with `loremFallback: false`).
 
+Rules 3 to 5 are guesses from a name, and a name says nothing about the type: `position` is a job title on a string and a rank on a number. So a hint only counts when its faker method returns a value the property's `type` allows; otherwise the next rule is tried.
+
+| property `type`               | hints that apply                                                       |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| `string`                      | methods returning a string, a `Date` or a number (written out as text) |
+| `number`                      | methods returning a number (`number.int`, `location.latitude`, …)      |
+| `integer`                     | methods returning an integer (`number.int`, `internet.port`, …)        |
+| `boolean`                     | `datatype.boolean`                                                     |
+| none                          | any                                                                    |
+| a list (`["string", "null"]`) | whatever any one of its types allows                                   |
+
+A `number` or `integer` property with no numeric hint gets no annotation, so json-schema-faker generates it from the schema's own `minimum` / `maximum` / `multipleOf`. (A string hint on a number used to make json-schema-faker emit `null`.) A method path the library does not know, one of your own included, is taken to return a string. An explicit `faker` on the node (rule 1) is never checked.
+
 Compound schema names (`UserAccount`, `user_accounts`, `ReviewComments`) are split and their parts are tried as fallbacks, so `user_accounts.name` → `person.fullName` via the `user` alias.
 
 ## Traversal

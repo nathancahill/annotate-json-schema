@@ -1,12 +1,13 @@
 import { faker } from "@faker-js/faker";
 import { generate } from "json-schema-faker";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   annotate,
   categoryFields,
   formatHints,
   genericFields,
 } from "./index.js";
+import { fakerOutput } from "./faker-types.js";
 import type { JsonSchema, JsonSchemaObject } from "./types.js";
 
 function obj(schema: JsonSchema): JsonSchemaObject {
@@ -47,6 +48,81 @@ describe("smoke — every dictionary entry is callable without throwing", () => 
       const fn = resolveFakerMethod(path);
       expect(typeof fn).toBe("function");
       expect(() => (fn as () => unknown)()).not.toThrow();
+    });
+  }
+});
+
+/** Every `module.method` path on the installed faker. */
+function allFakerPaths(): string[] {
+  const paths: string[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const modules = faker as any as Record<string, unknown>;
+  for (const mod of Object.keys(modules)) {
+    const instance = modules[mod];
+    // `helpers` methods take arguments and return whatever they are given.
+    if (mod === "helpers" || mod.startsWith("_")) continue;
+    if (typeof instance !== "object" || instance === null) continue;
+    const names = new Set<string>();
+    for (
+      let proto = instance;
+      proto && proto !== Object.prototype;
+      proto = Object.getPrototypeOf(proto)
+    ) {
+      for (const name of Object.getOwnPropertyNames(proto)) names.add(name);
+    }
+    for (const name of names) {
+      if (name === "constructor") continue;
+      if (typeof (instance as Record<string, unknown>)[name] !== "function") {
+        continue;
+      }
+      paths.push(`${mod}.${name}`);
+    }
+  }
+  return paths;
+}
+
+function outputOf(value: unknown): string {
+  if (value instanceof Date) return "date";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
+}
+
+describe("smoke — the output type table matches the installed faker", () => {
+  const paths = new Set([...allFakerPaths(), ...collectFakerPaths()]);
+
+  it("finds faker's methods", () => {
+    expect(paths.size).toBeGreaterThan(200);
+    expect(paths.has("number.int")).toBe(true);
+  });
+
+  for (const path of paths) {
+    it(`${path} returns what the table says`, () => {
+      // Deprecated methods warn; they are still methods a caller may name.
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const fn = resolveFakerMethod(path) as () => unknown;
+      const samples: unknown[] = [];
+      try {
+        for (let i = 0; i < 20; i++) samples.push(fn());
+      } catch {
+        // Needs arguments, so there is no output to compare. No dictionary
+        // entry is one of these: see "callable without throwing" above.
+        return;
+      } finally {
+        vi.restoreAllMocks();
+      }
+
+      const expected = fakerOutput(path);
+      for (const sample of samples) {
+        expect(outputOf(sample)).toBe(
+          expected === "integer" ? "number" : expected,
+        );
+      }
+      if (expected === "integer") {
+        expect(samples.every((n) => Number.isInteger(n))).toBe(true);
+      }
+      if (expected === "number") {
+        expect(samples.some((n) => !Number.isInteger(n))).toBe(true);
+      }
     });
   }
 });
@@ -146,5 +222,32 @@ describe("smoke — round-trip through json-schema-faker", () => {
     expect(typeof data.name).toBe("string");
     expect(String(data.name).length).toBeGreaterThan(0);
     expect(typeof data.slogan).toBe("string");
+  });
+});
+
+describe("smoke — numbers stay numbers through json-schema-faker", () => {
+  // A string hint on a number made json-schema-faker emit null.
+  it("a required number named like a string hint generates a number", async () => {
+    const schema: JsonSchema = {
+      type: "object",
+      required: ["position", "year", "name"],
+      properties: {
+        position: { type: "number" },
+        year: { type: "integer" },
+        name: { type: "string" },
+      },
+    };
+
+    for (const schemaName of ["User", "Stage", "Book"]) {
+      const annotated = annotate(schema, schemaName);
+      for (let i = 0; i < 20; i++) {
+        const data = (await generate(annotated, {
+          extensions: { faker },
+        })) as Record<string, unknown>;
+        expect(typeof data.position).toBe("number");
+        expect(Number.isInteger(data.year)).toBe(true);
+        expect(typeof data.name).toBe("string");
+      }
+    }
   });
 });
