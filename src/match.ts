@@ -32,9 +32,15 @@ export function buildContext(options: AnnotateOptions = {}): MatchContext {
   }
 
   return {
-    schemaAliases: { ...builtinSchemaAliases, ...(options.schemaAliases ?? {}) },
+    schemaAliases: {
+      ...builtinSchemaAliases,
+      ...(options.schemaAliases ?? {}),
+    },
     categoryFields,
-    genericFields: { ...builtinGenericFields, ...(options.genericFields ?? {}) },
+    genericFields: {
+      ...builtinGenericFields,
+      ...(options.genericFields ?? {}),
+    },
     formatHints: { ...builtinFormatHints, ...(options.formatHints ?? {}) },
     preserveExisting: options.preserveExisting ?? true,
     loremFallback: options.loremFallback ?? true,
