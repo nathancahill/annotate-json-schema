@@ -4,6 +4,7 @@ import {
   genericFields as builtinGenericFields,
   schemaAliases as builtinSchemaAliases,
 } from "./dict/index.js";
+import { fakerOutput, isCompatible } from "./faker-types.js";
 import { normalizeKey, normalizeSchemaName } from "./normalize.js";
 import type { AnnotateOptions, JsonSchemaObject } from "./types.js";
 
@@ -32,13 +33,28 @@ export function buildContext(options: AnnotateOptions = {}): MatchContext {
   }
 
   return {
-    schemaAliases: { ...builtinSchemaAliases, ...(options.schemaAliases ?? {}) },
+    schemaAliases: {
+      ...builtinSchemaAliases,
+      ...(options.schemaAliases ?? {}),
+    },
     categoryFields,
-    genericFields: { ...builtinGenericFields, ...(options.genericFields ?? {}) },
+    genericFields: {
+      ...builtinGenericFields,
+      ...(options.genericFields ?? {}),
+    },
     formatHints: { ...builtinFormatHints, ...(options.formatHints ?? {}) },
     preserveExisting: options.preserveExisting ?? true,
     loremFallback: options.loremFallback ?? true,
   };
+}
+
+function hasNumericBounds(node: JsonSchemaObject): boolean {
+  return (
+    (
+      ["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"] as const
+    ).some((key) => typeof node[key] === "number") ||
+    typeof node.multipleOf === "number"
+  );
 }
 
 function isStringLeaf(node: JsonSchemaObject): boolean {
@@ -58,6 +74,14 @@ function isStringLeaf(node: JsonSchemaObject): boolean {
  *   4. Category-scoped field map (schemaName → category → field)
  *   5. Generic field map
  *   6. `lorem.sentence` fallback for string leaves (when `loremFallback`)
+ *
+ * Rules 3 to 5 only count when the faker method returns a value the node's
+ * `type` allows; otherwise the next rule is tried. A number or integer leaf
+ * with no usable hint gets no annotation and is generated from the schema.
+ *
+ * Constraints a `faker` value would override are left to json-schema-faker:
+ * no annotation at all for a leaf with a `pattern`, no numeric hint for one
+ * with numeric bounds, no lorem fallback for one with a `maxLength`.
  */
 export function matchField(
   schemaName: string,
@@ -74,9 +98,29 @@ export function matchField(
   // values the schema rejects.
   if (Array.isArray(node.enum) || "const" in node) return undefined;
 
+  // The same goes for the schema's other constraints: json-schema-faker uses
+  // the `faker` value as it comes and does not check it against them. No
+  // faker method can be expected to satisfy a `pattern`.
+  if (typeof node.pattern === "string") return undefined;
+
+  // A hint is only a guess from a name, and the name says nothing about the
+  // type: `position` is a job title on a string and a rank on a number. A
+  // hint whose faker method returns the wrong type is passed over, and the
+  // next rule gets its turn.
+  //
+  // Nor is a numeric hint used on a property with numeric bounds: faker's
+  // numbers have ranges of their own (`number.int` goes up to 2^53) and would
+  // land outside them.
+  const bounded = hasNumericBounds(node);
+  const usable = (hit: string | undefined): hit is string => {
+    if (hit === undefined || !isCompatible(hit, node)) return false;
+    const output = fakerOutput(hit);
+    return !(bounded && (output === "integer" || output === "number"));
+  };
+
   if (typeof node.format === "string") {
     const hit = ctx.formatHints[node.format];
-    if (hit) return hit;
+    if (usable(hit)) return hit;
   }
 
   const fieldKey = normalizeKey(fieldName);
@@ -90,13 +134,19 @@ export function matchField(
     const categoryMap = ctx.categoryFields[category];
     if (!categoryMap) continue;
     const hit = categoryMap[fieldKey];
-    if (hit) return hit;
+    if (usable(hit)) return hit;
   }
 
   const generic = ctx.genericFields[fieldKey];
-  if (generic) return generic;
+  if (usable(generic)) return generic;
 
-  if (ctx.loremFallback && isStringLeaf(node)) {
+  // A sentence is the guess for a string nothing is known about. A length
+  // limit is something known, and a sentence would run past it.
+  if (
+    ctx.loremFallback &&
+    isStringLeaf(node) &&
+    typeof node.maxLength !== "number"
+  ) {
     return "lorem.sentence";
   }
 

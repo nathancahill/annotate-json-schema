@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.2 - 2026-11-24
+
+- A name hint is only applied when its faker method returns a value the property's `type` allows. A `number` field called `position` used to get `person.jobTitle`, and json-schema-faker then emitted `null`; `price: number` got `commerce.price`, which returns a string. A hint of the wrong type is now passed over and the next rule is tried, and a `number` or `integer` with no numeric hint is left to the schema's own constraints. `format` hints are checked the same way.
+- A `string` property no longer takes a hint that returns an object or an array (`airline.airline`, `color.hsl`), which came out as `"[object Object]"`. It falls back to `lorem.sentence`.
+- Constraints a hint would override are left to json-schema-faker, which does not check a `faker` value against them: a leaf with a `pattern` is not annotated, a leaf with numeric bounds (`minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`) gets no numeric hint, and a string with a `maxLength` gets no `lorem.sentence` fallback. An explicit `faker` on such a node is still kept.
+
 ## 0.1.1 - 2026-09-22
 
 - Leaves with `enum` or `const` are no longer annotated. json-schema-faker prefers `faker` over both, so an enum field such as `kind: { enum: ["dog", "cat"] }` used to get `lorem.sentence` (or a dictionary match) and generate values outside the enum. An explicit `faker` on such a node is still kept.

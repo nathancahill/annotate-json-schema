@@ -1,9 +1,5 @@
 import { buildContext, matchField, type MatchContext } from "./match.js";
-import type {
-  AnnotateOptions,
-  JsonSchema,
-  JsonSchemaObject,
-} from "./types.js";
+import type { AnnotateOptions, JsonSchema, JsonSchemaObject } from "./types.js";
 
 /**
  * Deep-clone + recursively annotate a JSON Schema.
