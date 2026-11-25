@@ -1,6 +1,6 @@
 {
   "name": "annotate-json-schema",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Preprocess a JSON Schema to annotate leaf properties with json-schema-faker `faker` keywords.",
   "type": "module",
   "main": "./dist/index.js",
